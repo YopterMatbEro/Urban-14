@@ -1,22 +1,7 @@
-import sqlite3
+from db import get_cursor
 
-connection = sqlite3.connect('not_telegram.db')
-cursor = connection.cursor()
 
-# Создание таблицы и её структуры
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS Users(
-id INTEGER PRIMARY KEY,
-username TEXT NOT NULL,
-email TEXT NOT NULL,
-age INTEGER,
-balance INTEGER NOT NULL
-)
-""")
-
-# Удаление таблицы (чтобы начать с нуля, в случае непредвиденных обстоятельств :D )
-# cursor.execute("DROP TABLE Users")
-
+cursor, connection = get_cursor()
 # Наполнение таблицы
 for i in range(1, 11):
     cursor.execute(
@@ -30,7 +15,7 @@ for i in range(1, 11, 2):
 
 # Удаление данных из таблицы
 for i in range(1, 11, 3):
-    cursor.execute("DELETE FROM Users WHERE username = ?", (f'User{i}',))
+    cursor.execute("DELETE FROM Users WHERE id = ?", (i,))
 
 # Выборка
 cursor.execute("SELECT * FROM Users WHERE age != 60")
