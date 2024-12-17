@@ -2,7 +2,7 @@ from pathlib import Path
 
 from aiogram import executor
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from data import dp
+from setup import dp
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 
@@ -29,10 +29,10 @@ kb_inline.row(button_calc_normal, button_formula)
 
 # Инлайн при покупке
 kb_inline_prods = InlineKeyboardMarkup()
-button_prod_1 = InlineKeyboardButton(text='Product1', callback_data='product_buying')
-button_prod_2 = InlineKeyboardButton(text='Product2', callback_data='product_buying')
-button_prod_3 = InlineKeyboardButton(text='Product3', callback_data='product_buying')
-button_prod_4 = InlineKeyboardButton(text='Product4', callback_data='product_buying')
+button_prod_1 = InlineKeyboardButton(text='D-3', callback_data='product_buying_d-3')
+button_prod_2 = InlineKeyboardButton(text='VITRUM', callback_data='product_buying_vitrum')
+button_prod_3 = InlineKeyboardButton(text='Витамин A', callback_data='product_buying_vitamin_a')
+button_prod_4 = InlineKeyboardButton(text='РЕВИТ', callback_data='product_buying_revit')
 kb_inline_prods.row(button_prod_1, button_prod_2, button_prod_3, button_prod_4)
 
 
@@ -63,18 +63,40 @@ A - это уровень активности человека, его разл
 
 @dp.message_handler(text='Купить')
 async def get_buying_list(message):
-    directory = Path('files/')
-    files = [file for file in list(directory.glob('*')) if file.is_file()]
+    files = {num: file.name for num, file in enumerate(list(Path('files/').glob('*'))) if file.is_file()}
+    descriptions = {
+        'D-3': ['Поддерживает крепость костей и укрепляет иммунную систему', 1785],
+        'VITRUM': ['13 Витаминов, 12 Минералов', 723],
+        'А': ['Нормализация работы иммунной системы, улучшение состояния кожи и здоровья глаз', 1450],
+        'РЕВИТ': ['Поддерживает баланс витаминов в организме', 83]
+    }
+    print(files)
     for i in range(4):
-        await message.answer(f'Название: Product{i+1} | Описание: описание {i+1} | Цена: {(i + 1) * 100}')
-        with open(f'{files[i]}.jpg', 'rb') as img:
-            await message.answer.photo(img)
+        file_values = files[i].rstrip(".jpg")
+        await message.answer(f'Название: {file_values} | Описание: {descriptions[file_values][0]} | Цена: {descriptions[file_values][1]} руб.')
+        with open(f'files/{files[i]}', 'rb') as img:
+            await message.answer_photo(img)
     await message.answer('Выберите продукт для покупки:', reply_markup=kb_inline_prods)
 
 
-@dp.callback_query_handler(text='product_buying')
+@dp.callback_query_handler(text='product_buying_d-3')
 async def send_confirm_message(call):
-    await call.message.answer('Вы успешно приобрели продукт!')
+    await call.message.answer('Вы успешно приобрели Витамины D-3!')
+
+
+@dp.callback_query_handler(text='product_buying_vitrum')
+async def send_confirm_message(call):
+    await call.message.answer('Вы успешно приобрели VITRUM!')
+
+
+@dp.callback_query_handler(text='product_buying_vitamin_a')
+async def send_confirm_message(call):
+    await call.message.answer('Вы успешно приобрели Витамин А!')
+
+
+@dp.callback_query_handler(text='product_buying_revit')
+async def send_confirm_message(call):
+    await call.message.answer('Вы успешно приобрели Ревит!')
 
 
 @dp.callback_query_handler(text='calories')

@@ -1,4 +1,4 @@
-from db import get_cursor
+from setup import get_cursor
 
 
 cursor, connection = get_cursor()
