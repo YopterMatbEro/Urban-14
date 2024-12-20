@@ -1,9 +1,8 @@
-from pathlib import Path
-
 from aiogram import executor
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from setup import dp
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from crud_functions import get_all_products
 
 
 class UserState(StatesGroup):
@@ -63,18 +62,11 @@ A - это уровень активности человека, его разл
 
 @dp.message_handler(text='Купить')
 async def get_buying_list(message):
-    files = {num: file.name for num, file in enumerate(list(Path('files/').glob('*'))) if file.is_file()}
-    descriptions = {
-        'D-3': ['Поддерживает крепость костей и укрепляет иммунную систему', 1785],
-        'VITRUM': ['13 Витаминов, 12 Минералов', 723],
-        'А': ['Нормализация работы иммунной системы, улучшение состояния кожи и здоровья глаз', 1450],
-        'РЕВИТ': ['Поддерживает баланс витаминов в организме', 83]
-    }
-    print(files)
-    for i in range(4):
-        file_values = files[i].rstrip(".jpg")
-        await message.answer(f'Название: {file_values} | Описание: {descriptions[file_values][0]} | Цена: {descriptions[file_values][1]} руб.')
-        with open(f'files/{files[i]}', 'rb') as img:
+    all_products = get_all_products()
+
+    for prod in all_products:
+        await message.answer(f'Название: {prod[1]} | Описание: {prod[2]} | Цена: {prod[3]} руб.')
+        with open(f'files/{prod[1]}.jpg', 'rb') as img:
             await message.answer_photo(img)
     await message.answer('Выберите продукт для покупки:', reply_markup=kb_inline_prods)
 
