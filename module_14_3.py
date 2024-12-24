@@ -2,7 +2,7 @@ from aiogram import executor
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from setup import dp
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
-from crud_functions import get_all_products
+from crud_functions import get_all_products, is_included, add_user
 
 
 class UserState(StatesGroup):
@@ -12,15 +12,22 @@ class UserState(StatesGroup):
     gender = State()
 
 
+class RegistrationState(StatesGroup):
+    username = State()
+    email = State()
+    age = State()
+
+
 # Стартовое меню
 kb = ReplyKeyboardMarkup(resize_keyboard=True)
 button_calc = KeyboardButton(text='Рассчитать')
 button_info = KeyboardButton(text='Информация')
 button_buy = KeyboardButton(text='Купить')
+button_registration = KeyboardButton(text='Регистрация')
 kb.row(button_calc, button_info)
-kb.add(button_buy)
+kb.row(button_buy, button_registration)
 
-# Выбор: Рассчитать, формулы и купить
+# Выбор: Рассчитать и формулы
 kb_inline = InlineKeyboardMarkup()
 button_calc_normal = InlineKeyboardButton(text='Рассчитать норму калорий', callback_data='calories')
 button_formula = InlineKeyboardButton(text='Формулы расчета', callback_data='formulas')
@@ -93,7 +100,7 @@ async def send_confirm_message(call):
 
 @dp.callback_query_handler(text='calories')
 async def set_age(call):
-    await call.message.answer('Введите свой возраст.')
+    await call.message.answer('Введите свой возраст:')
     await UserState.age.set()
 
 
@@ -101,22 +108,24 @@ async def set_age(call):
 async def set_growth(message, state):
     if message.text.isdigit() and 0 < int(message.text) < 120:
         await state.update_data(age=message.text)
-        await message.answer('Введите свой рост в сантиметрах.')
+        await message.answer('Введите свой рост в сантиметрах:')
         await UserState.growth.set()
     else:
         await message.answer(
             'Пожалуйста, введите корректный возраст (число в диапазоне от 1 до 120 лет). Попробуйте снова.')
+        # Ожидаем нового ввода, состояние остаётся тем же
 
 
 @dp.message_handler(state=UserState.growth)
 async def set_weight(message, state):
     if message.text.isdigit() and 30 < int(message.text) < 300:
         await state.update_data(growth=message.text)
-        await message.answer('Введите свой вес в килограммах.')
+        await message.answer('Введите свой вес в килограммах:')
         await UserState.weight.set()
     else:
         await message.answer(
             'Пожалуйста, введите корректный рост (число в диапазоне от 30 до 300 см). Попробуйте снова.')
+        # Ожидаем нового ввода, состояние остаётся тем же
 
 
 @dp.message_handler(state=UserState.weight)
@@ -128,6 +137,7 @@ async def set_gender(message, state):
     else:
         await message.answer(
             'Пожалуйста, введите корректный вес (число в диапазоне от 10 до 400 кг). Попробуйте снова.')
+        # Ожидаем нового ввода, состояние остаётся тем же
 
 
 @dp.message_handler(state=UserState.gender)
@@ -143,10 +153,68 @@ async def send_calories(message, state):
         elif data['gender'].lower() == 'ж':
             result = (10 * float(data['weight']) + 6.25 * float(data['growth']) - 5 * float(data['age']) - 161) * 1.55
             await message.answer(f'Норма калорий для Вас {round(result, 2)}')
+        # Финализация состояния происходит только после успешной обработки
+        await state.finish()
     else:
-        await message.answer(f'Неверно указан пол, Ваш ответ: {gender}')
-        await message.answer('Начните сначала. Введите команду /start')
-    await state.finish()
+        await message.answer(f'Неверно указан пол, Ваш ответ: {gender}. Укажите один из двух (м/ж):')
+        # Ожидаем нового ввода, состояние остаётся тем же
+
+
+@dp.message_handler(text='Регистрация')
+async def sing_up(message):
+    await message.answer('Введите имя пользователя (только латинский алфавит):')
+    await RegistrationState.username.set()
+
+
+@dp.message_handler(state=RegistrationState.username)
+async def set_username(message, state):
+    if not is_included(message.text):
+        if message.text.isascii() and message.text.isalpha():
+            await state.update_data(username=message.text)
+            await message.answer('Укажите свой email:')
+            await RegistrationState.email.set()
+        else:
+            await message.answer('Введите корректное имя пользователя (только латинский алфавит):')
+    else:
+        await message.answer('Пользователь существует, введите другое имя')
+        await RegistrationState.username.set()
+
+
+@dp.message_handler(state=RegistrationState.email)
+async def set_email(message, state):
+    # Проверка корректности адреса
+    check_address = ['@mail.ru', '@yandex.ru', '@ya.ru', '@gmail.com']
+    acceptable_address = any(address in message.text for address in check_address)
+
+    if acceptable_address:
+        await state.update_data(email=message.text)
+        await message.answer('Введите свой возраст:')
+        await RegistrationState.age.set()
+    else:
+        await message.answer(
+            'Укажите корректный (полный) адрес, включающий символ @ и почтовый домен (например @mail.ru)')
+        # Ожидаем нового ввода, состояние остаётся тем же
+
+
+@dp.message_handler(state=RegistrationState.age)
+async def user_registration(message, state):
+    if message.text.isdigit() and 0 < int(message.text) < 120:
+        await state.update_data(age=message.text)
+        data = await state.get_data()
+        try:
+            registration_status = add_user(data['username'], data['email'], data['age'])
+            if registration_status:
+                await message.answer(f'Регистрация прошла успешно!')
+            else:
+                await message.answer('Ошибка при регистрации! Обратитесь к администратору.')  # Описание в консоли
+            await state.finish()
+        except Exception as e:
+            await message.answer(f'Ошибка при регистрации! Обратитесь к администратору.')
+            print(f'Ошибка при регистрации: {e}')
+    else:
+        await message.answer(
+            'Пожалуйста, введите корректный возраст (число в диапазоне от 1 до 120 лет). Попробуйте снова.')
+        # Ожидаем нового ввода, состояние остаётся тем же
 
 
 @dp.message_handler()
