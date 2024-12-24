@@ -56,7 +56,7 @@ def drop_table(table_name):
 
 
 def filling_products(prod_id, title, description, price):
-    """Заполняет таблицу <table_name> данными"""
+    """Заполняет таблицу Products данными"""
     query_check = f'SELECT * FROM Products WHERE id = ? AND title = ?'
     cursor, connection = execute_query(query_check, (prod_id, title))
 
@@ -77,7 +77,7 @@ def filling_products(prod_id, title, description, price):
 
 
 def get_all_products():
-    """Возвращает все данные из таблицы <table_name> """
+    """Возвращает все данные из таблицы Products"""
     cursor, connection = get_cursor()
 
     try:
