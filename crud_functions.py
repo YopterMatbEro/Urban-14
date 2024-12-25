@@ -145,11 +145,11 @@ if __name__ == '__main__':
         3: {'РЕВИТ': ['Поддерживает баланс витаминов в организме', 83]}
     }
 
-    # for prod_id, product in products.items():
-    #     name = list(product.keys())[0]
-    #     description = list(product.values())[0][0]
-    #     price = list(product.values())[0][1]
-    #     filling_products(prod_id, name, description, price)
+    for prod_id, product in products.items():
+        name = list(product.keys())[0]
+        description = list(product.values())[0][0]
+        price = list(product.values())[0][1]
+        filling_products(prod_id, name, description, price)
 
     # drop_table('Products')
     # drop_table('Users')

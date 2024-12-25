@@ -24,8 +24,8 @@ button_calc = KeyboardButton(text='Рассчитать')
 button_info = KeyboardButton(text='Информация')
 button_buy = KeyboardButton(text='Купить')
 button_registration = KeyboardButton(text='Регистрация')
-kb.row(button_calc, button_info)
-kb.row(button_buy, button_registration)
+kb.row(button_info, button_calc)
+kb.row(button_registration, button_buy)
 
 # Выбор: Рассчитать и формулы
 kb_inline = InlineKeyboardMarkup()
@@ -33,20 +33,19 @@ button_calc_normal = InlineKeyboardButton(text='Рассчитать норму 
 button_formula = InlineKeyboardButton(text='Формулы расчета', callback_data='formulas')
 kb_inline.row(button_calc_normal, button_formula)
 
-# Инлайн при покупке
-kb_inline_prods = InlineKeyboardMarkup()
-button_prod_1 = InlineKeyboardButton(text='D-3', callback_data='product_buying_d-3')
-button_prod_2 = InlineKeyboardButton(text='VITRUM', callback_data='product_buying_vitrum')
-button_prod_3 = InlineKeyboardButton(text='Витамин A', callback_data='product_buying_vitamin_a')
-button_prod_4 = InlineKeyboardButton(text='РЕВИТ', callback_data='product_buying_revit')
-kb_inline_prods.row(button_prod_1, button_prod_2, button_prod_3, button_prod_4)
-
 
 @dp.message_handler(commands=['start'])
 async def start_message(message):
-    await message.answer('Привет! Я бот помогающий твоему здоровью.')
-    await message.answer('Нажмите кнопку "Рассчитать" для подсчета нормы калорий для поддержания нормального веса.',
-                         reply_markup=kb)
+    await message.answer('Привет! Я бот помогающий твоему здоровью. Что выберете?', reply_markup=kb)
+
+
+@dp.message_handler(text='Информация')
+async def info(message):
+    await message.answer('''
+Нажмите кнопку "Рассчитать" для подсчета нормы калорий для поддержания нормального веса.
+Нажмите кнопку "Регистрация" для регистрации пользователя в системе.
+Нажмите кнопку "Купить" для просмотра и выбора имеющихся товаров.
+    ''')
 
 
 @dp.message_handler(text='Рассчитать')
@@ -71,29 +70,39 @@ A - это уровень активности человека, его разл
 async def get_buying_list(message):
     all_products = get_all_products()
 
+    # Инлайн будет добавляться при покупке, после проверки наличия товаров в БД
+    kb_inline_prods = InlineKeyboardMarkup()
+    buttons = []
+
     for prod in all_products:
         await message.answer(f'Название: {prod[1]} | Описание: {prod[2]} | Цена: {prod[3]} руб.')
         with open(f'files/{prod[1]}.jpg', 'rb') as img:
             await message.answer_photo(img)
-    await message.answer('Выберите продукт для покупки:', reply_markup=kb_inline_prods)
+        buttons.append(InlineKeyboardButton(text=prod[1], callback_data=f'product_buying_{prod[1].replace(" ", "_")}'))
+    kb_inline_prods.row(*buttons)
+
+    if buttons:
+        await message.answer('Выберите продукт для покупки:', reply_markup=kb_inline_prods)
+    else:
+        await message.answer('К сожалению, нет продуктов на продажу! Попробуйте позже.')
 
 
-@dp.callback_query_handler(text='product_buying_d-3')
+@dp.callback_query_handler(text='product_buying_D-3')
 async def send_confirm_message(call):
     await call.message.answer('Вы успешно приобрели Витамины D-3!')
 
 
-@dp.callback_query_handler(text='product_buying_vitrum')
+@dp.callback_query_handler(text='product_buying_VITRUM')
 async def send_confirm_message(call):
     await call.message.answer('Вы успешно приобрели VITRUM!')
 
 
-@dp.callback_query_handler(text='product_buying_vitamin_a')
+@dp.callback_query_handler(text='product_buying_А')
 async def send_confirm_message(call):
     await call.message.answer('Вы успешно приобрели Витамин А!')
 
 
-@dp.callback_query_handler(text='product_buying_revit')
+@dp.callback_query_handler(text='product_buying_РЕВИТ')
 async def send_confirm_message(call):
     await call.message.answer('Вы успешно приобрели Ревит!')
 
@@ -118,13 +127,13 @@ async def set_growth(message, state):
 
 @dp.message_handler(state=UserState.growth)
 async def set_weight(message, state):
-    if message.text.isdigit() and 30 < int(message.text) < 300:
+    if message.text.isdigit() and 30 < int(message.text) < 270:
         await state.update_data(growth=message.text)
         await message.answer('Введите свой вес в килограммах:')
         await UserState.weight.set()
     else:
         await message.answer(
-            'Пожалуйста, введите корректный рост (число в диапазоне от 30 до 300 см). Попробуйте снова.')
+            'Пожалуйста, введите корректный рост (число в диапазоне от 30 до 270 см). Попробуйте снова.')
         # Ожидаем нового ввода, состояние остаётся тем же
 
 
@@ -184,7 +193,7 @@ async def set_username(message, state):
 async def set_email(message, state):
     # Проверка корректности адреса
     check_address = ['@mail.ru', '@yandex.ru', '@ya.ru', '@gmail.com']
-    acceptable_address = any(address in message.text for address in check_address)
+    acceptable_address = any(message.text.endswith(address) for address in check_address)
 
     if acceptable_address:
         await state.update_data(email=message.text)
